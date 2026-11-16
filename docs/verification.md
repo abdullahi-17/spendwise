@@ -1,6 +1,6 @@
 # Verification evidence
 
-Build date: 2026-11-16. Results below are from this local build, not a hosted release.
+Build date: 2026-11-16. The website has now been published through [a successful hosted release](https://github.com/abdullahi-17/spendwise/actions/runs/43931525335). See [the release record](releases/2026-11-16.md) for live evidence; the earlier local-build snapshots below retain their original scope.
 
 ## Observed checks
 
@@ -78,3 +78,7 @@ The remaining portfolio pages were audited and corrected after the demo design b
 Latest targeted verification: the 19 portfolio checks passed after changing the static UX phones to iPhone 17 proportions. This supersedes the earlier content-driven handset height; long screen content now scrolls within focusable, labelled regions.
 
 Latest complete browser run: 44 checks passed after enclosing the demo in the same phone frame as the UX studies. Desktop/mobile dimensions, keyboard interaction and 320px enlarged text passed. Preview images were refreshed.
+
+## Website release completed
+
+The first hosted release passed 80 Python tests, 44 browser checks, template validation, OIDC artifact deployment, CloudFront refresh, and public-byte comparison. A separate live-browser reflection completed with no page errors. The main portfolio homepage matched its pre-release SHA-256 hash. API integration, alert delivery, budget notifications and the rollback drill remain pending.

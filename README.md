@@ -73,4 +73,4 @@ See [the approved design plan](docs/app-design-plan.md) for layout, interaction 
 
 ## Verification and portfolio evidence
 
-See [the portfolio audit](docs/portfolio-audit.md) for the remaining-page findings and fixes. See [verification evidence](docs/verification.md) for current results and the remaining hosted demonstrations. Local checks do not establish that AWS resources, alerts, deployment or rollback have worked in the cloud. No new cloud deployment is claimed.
+See [the portfolio audit](docs/portfolio-audit.md) for the remaining-page findings and fixes. See [verification evidence](docs/verification.md) for current results and the remaining hosted demonstrations. The [website release](https://github.com/abdullahi-17/spendwise/actions/runs/43931525335) passed hosted checks, published the tested artifact, and verified public bytes. A live demo smoke check also passed. The optional Lambda API is not enabled; alert delivery and rollback still need demonstrations. See [the release record](docs/releases/2026-11-16.md).
