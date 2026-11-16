@@ -1,0 +1,61 @@
+name: Roll back SpendWise
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful main-branch Deploy SpendWise run ID from the last 30 days
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+concurrency:
+  group: spendwise-production
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Require a successful release from this repository's main branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN: ${{ inputs.run_id }}
+        run: |
+          [[ "$RELEASE_RUN" =~ ^[0-9]+$ ]] || exit 1
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RELEASE_RUN" > /tmp/release-run.json
+          python scripts/check_release_run.py /tmp/release-run.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: spendwise-release
+          path: release
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - run: python scripts/release.py verify release
+      - name: Match artifact revision to the approved workflow run
+        run: |
+          python -c 'import json; r=json.load(open("/tmp/release-run.json")); m=json.load(open("release/manifest.json")); assert m["revision"] == r["head_sha"], "Revision mismatch"'
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::043309365882:role/spendwise-github-deploy
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Restore website files in place
+        env:
+          SITE_BUCKET: ${{ secrets.S3_BUCKET }}
+        run: aws s3 cp release/site/ "s3://$SITE_BUCKET/spendwise/" --recursive --cache-control "public, max-age=300" --only-show-errors
+      - name: Refresh SpendWise cache
+        env:
+          DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/spendwise/*" "/demo.html" "/js/*" "/css/*" --query Invalidation.Id --output text)
+          aws cloudfront wait invalidation-completed --distribution-id "$DISTRIBUTION_ID" --id "$INVALIDATION_ID"
+      - run: python scripts/check_live.py release/site https://spendwise.abdullahiomer.com

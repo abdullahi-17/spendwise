@@ -1,0 +1,11 @@
+node_modules/
+test-results/
+playwright-report/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+release/
+.DS_Store
+.coverage
+htmlcov/

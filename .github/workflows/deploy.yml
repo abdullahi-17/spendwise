@@ -1,0 +1,85 @@
+name: Deploy SpendWise
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: python -m pip install pytest pytest-cov cfn-lint
+      - run: python -m pytest --cov=infrastructure/lambda --cov=scripts --cov-report=term-missing --cov-fail-under=80 -q
+      - run: cfn-lint -i W3002 -t infrastructure/template.yaml infrastructure/github-oidc.yaml infrastructure/budget.yaml
+      - run: node --check spendwise/js/demo.js
+      - run: node --check spendwise/js/navigation.js
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - name: Package the tested website
+        env:
+          REVISION: ${{ github.sha }}
+        run: python scripts/release.py package spendwise release --revision "$REVISION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spendwise-release
+          path: release/
+          retention-days: 30
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results
+          path: test-results/
+          retention-days: 7
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    concurrency:
+      group: spendwise-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: spendwise-release
+          path: release
+      - run: python scripts/release.py verify release
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::043309365882:role/spendwise-github-deploy
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Upload tested SpendWise artifact
+        env:
+          SITE_BUCKET: ${{ secrets.S3_BUCKET }}
+        run: aws s3 cp release/site/ "s3://$SITE_BUCKET/spendwise/" --recursive --cache-control "public, max-age=300" --only-show-errors
+      - name: Refresh SpendWise cache
+        env:
+          DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/spendwise/*" "/demo.html" "/js/*" "/css/*" --query Invalidation.Id --output text)
+          aws cloudfront wait invalidation-completed --distribution-id "$DISTRIBUTION_ID" --id "$INVALIDATION_ID"
+      - name: Verify public demo bytes
+        run: python scripts/check_live.py release/site https://spendwise.abdullahiomer.com

@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: GitHub Actions deploy role using OIDC (no stored AWS access keys)
+
+Parameters:
+  GitHubRepo:
+    Type: String
+    Description: "Repository in owner/name form, for example abdullahi-17/abdullahiomer.com"
+  Branch:
+    Type: String
+    Default: main
+    Description: Only workflow runs on this branch can assume the role
+  SiteBucketName:
+    Type: String
+    Description: Name of the S3 bucket that hosts the site
+  CloudFrontDistributionId:
+    Type: String
+    Description: ID of the CloudFront distribution to invalidate
+  ExistingOidcProviderArn:
+    Type: String
+    Default: ""
+    Description: >-
+      Leave empty to create the GitHub OIDC provider. An account can only have one
+      provider per URL, so if one exists already (check with
+      "aws iam list-open-id-connect-providers"), paste its ARN here.
+
+Conditions:
+  CreateProvider: !Equals [!Ref ExistingOidcProviderArn, ""]
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      # AWS validates GitHub's certificate chain itself, so these are kept
+      # for compatibility rather than as the trust anchor.
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Assumed by GitHub Actions to deploy the static site
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateProvider
+                - !Ref GitHubOidcProvider
+                - !Ref ExistingOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "token.actions.githubusercontent.com:aud": sts.amazonaws.com
+                # Locks the role to one repository and one branch.
+                # Without this condition, any repository on GitHub could assume it.
+                "token.actions.githubusercontent.com:sub": !Sub repo:${GitHubRepo}:ref:refs/heads/${Branch}
+      Policies:
+        - PolicyName: site-deploy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ListSiteBucket
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub arn:aws:s3:::${SiteBucketName}
+                Condition:
+                  StringLike:
+                    s3:prefix:
+                      - "spendwise/"
+                      - "spendwise/*"
+              - Sid: ReadWriteSpendWiseObjects
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub arn:aws:s3:::${SiteBucketName}/spendwise/*
+              - Sid: InvalidateCache
+                Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                  - cloudfront:GetInvalidation
+                Resource: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistributionId}
+
+Outputs:
+  RoleArn:
+    Description: Add this as the AWS_ROLE_ARN repository secret
+    Value: !GetAtt DeployRole.Arn

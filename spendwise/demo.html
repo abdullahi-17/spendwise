@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demo | SpendWise</title>
+  <meta name="description" content="Try a sample SpendWise reflection and explore its cloud engineering implementation.">
+  <link rel="stylesheet" href="css/spendwise.css">
+  <link rel="stylesheet" href="css/demo.css">
+</head>
+<body class="sidebar-layout demo-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <aside class="cs-nav" aria-label="SpendWise navigation">
+    <a class="sidebar-brand" href="index.html">SpendWise ·</a>
+    <div class="demo-project-nav" id="demo-project-nav">
+
+      <nav class="sidebar-pages" aria-label="Project navigation">
+        <a href="index.html">Introduction</a>
+        <a href="design-research.html">Design Research &amp; Testing</a>
+        <a href="user-experience.html">User Experience</a>
+        <a href="app-configuration.html">App Configuration</a>
+        <a href="demo.html" aria-current="page">Interactive demo</a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="https://abdullahiomer.com/">← Back to portfolio</a>
+        <p>Abdullahi Omer</p>
+      </div>
+    </div>
+  </aside>
+  <div class="container">
+    <main class="cs-main split-main" id="main-content" tabindex="-1">
+      <header class="demo-intro">
+        <div class="cs-eyebrow">Interactive demo</div>
+        <h1>Make room for a clearer choice.</h1>
+        <p>Try a sample reflection. No real purchase, cart, reminder, or saved history is connected.</p>
+      </header>
+      <section class="demo-experience" aria-label="Try the reflection">
+        <div id="demo-mount"></div>
+        <noscript>This demo needs JavaScript. <a href="user-experience.html#flow">Read the reflection flow</a>.</noscript>
+      </section>
+      <section class="demo-engineering" aria-labelledby="demo-engineering-title">
+        <div class="cs-eyebrow">Behind the demo</div>
+        <h2 id="demo-engineering-title">A small app with a cloud delivery workflow.</h2>
+        <p>The reflection works locally. When an API endpoint is configured, API Gateway and a Python Lambda function return the insight. The same rules provide a browser fallback.</p>
+        <ul>
+          <li><strong>Checked locally:</strong> API validation, matching insight rules, keyboard interaction and browser regression tests.</li>
+          <li><strong>Prepared in code:</strong> infrastructure templates, tested website artifacts, OIDC deployment, monitoring and guarded rollback.</li>
+          <li><strong>Still to demonstrate:</strong> the hosted release, live API, alert delivery and cloud recovery.</li>
+        </ul>
+        <div class="demo-links">
+          <a href="app-configuration.html">Explore the cloud architecture →</a>
+          <a href="user-experience.html#flow">Read the interaction design →</a>
+        </div>
+      </section>
+    </main>
+  </div>
+  <footer><div class="container"><p>© 2026 Abdullahi Omer · <a href="https://abdullahiomer.com/">Portfolio</a></p></div></footer>
+  <script src="js/demo-config.js" defer></script>
+  <script src="js/demo.js" defer></script>
+  <script src="js/navigation.js" defer></script>
+</body>
+</html>

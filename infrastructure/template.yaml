@@ -1,0 +1,252 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: SpendWise Nudge backend (API Gateway + Lambda)
+
+# This template references the Lambda code by local path (Code: lambda/).
+# It must be run through "aws cloudformation package" before deploying,
+# which uploads the code to S3 and rewrites the reference. See README.
+
+Parameters:
+  AllowedOrigin:
+    Type: String
+    Default: "https://spendwise.abdullahiomer.com"
+    Description: Origin allowed by CORS. Override with http://localhost:3000 for local testing.
+  ThrottleRate:
+    Type: Number
+    Default: 5
+    Description: Steady state requests per second allowed on the stage
+  ThrottleBurst:
+    Type: Number
+    Default: 10
+    Description: Burst request limit on the stage
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+    Description: How long Lambda logs are kept
+
+  AlertEmail:
+    Type: String
+    Default: ""
+    Description: Optional operations email; confirm the SNS subscription after deployment.
+
+Conditions:
+  HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+
+Resources:
+  # Created explicitly so retention is bounded. Lambda would otherwise
+  # create the group itself with logs that never expire.
+  NudgeLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/spendwise-nudge
+      RetentionInDays: !Ref LogRetentionDays
+
+  # No fixed RoleName, so CAPABILITY_IAM is enough (not NAMED_IAM).
+  # Only stream creation and writes in this function's log group.
+  NudgeExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: NudgeLogWrites
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/spendwise-nudge:*"
+
+  NudgeFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: NudgeLogGroup
+    Properties:
+      FunctionName: spendwise-nudge
+      Runtime: python3.12
+      Handler: nudge.handler
+      Role: !GetAtt NudgeExecutionRole.Arn
+      Timeout: 5
+      MemorySize: 128
+      Code: lambda/
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+
+  NudgeApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: spendwise-nudge-api
+      Description: SpendWise Nudge insight endpoint
+
+  NudgeResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref NudgeApi
+      ParentId: !GetAtt NudgeApi.RootResourceId
+      PathPart: insight
+
+  NudgePostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref NudgeApi
+      ResourceId: !Ref NudgeResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NudgeFunction.Arn}/invocations
+
+  # CORS preflight answered by API Gateway directly. No Lambda invocation,
+  # so preflight requests cost nothing in compute.
+  NudgeOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref NudgeApi
+      ResourceId: !Ref NudgeResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
+              method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  GatewayClientErrors:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      RestApiId: !Ref NudgeApi
+      ResponseType: DEFAULT_4XX
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type'"
+        gatewayresponse.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
+
+  GatewayServerErrors:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      RestApiId: !Ref NudgeApi
+      ResponseType: DEFAULT_5XX
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type'"
+        gatewayresponse.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
+
+  # Bump this logical ID when changing methods or CORS: deployments are snapshots.
+  NudgeDeploymentV2:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - NudgePostMethod
+      - NudgeOptionsMethod
+      - GatewayClientErrors
+      - GatewayServerErrors
+    Properties:
+      RestApiId: !Ref NudgeApi
+
+  # Throttling reduces abuse; it does not guarantee a spending cap.
+  NudgeStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref NudgeApi
+      DeploymentId: !Ref NudgeDeploymentV2
+      StageName: prod
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          ThrottlingRateLimit: !Ref ThrottleRate
+          ThrottlingBurstLimit: !Ref ThrottleBurst
+          MetricsEnabled: false
+
+  # Lambda invoke permissions use the execute-api ARN format,
+  # not the apigateway ARN format.
+  NudgeLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref NudgeFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${NudgeApi}/*/POST/insight
+
+  OperationsTopic:
+    Type: AWS::SNS::Topic
+    Condition: HasAlertEmail
+    Properties:
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref AlertEmail
+
+  ApiServerErrors:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Nudge API returned at least one server error in five minutes.
+      Namespace: AWS/ApiGateway
+      MetricName: 5XXError
+      Dimensions:
+        - Name: ApiName
+          Value: spendwise-nudge-api
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlertEmail, [!Ref OperationsTopic], !Ref "AWS::NoValue"]
+      OKActions: !If [HasAlertEmail, [!Ref OperationsTopic], !Ref "AWS::NoValue"]
+
+  ApiLatency:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Average Nudge API latency exceeded two seconds for two five-minute periods.
+      Namespace: AWS/ApiGateway
+      MetricName: Latency
+      Dimensions:
+        - Name: ApiName
+          Value: spendwise-nudge-api
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 2000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlertEmail, [!Ref OperationsTopic], !Ref "AWS::NoValue"]
+      OKActions: !If [HasAlertEmail, [!Ref OperationsTopic], !Ref "AWS::NoValue"]
+
+  LambdaThrottles:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Nudge Lambda was throttled in the last five minutes.
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref NudgeFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlertEmail, [!Ref OperationsTopic], !Ref "AWS::NoValue"]
+      OKActions: !If [HasAlertEmail, [!Ref OperationsTopic], !Ref "AWS::NoValue"]
+
+Outputs:
+  ApiEndpoint:
+    Description: Configure this as the demo Nudge API endpoint
+    Value: !Sub https://${NudgeApi}.execute-api.${AWS::Region}.amazonaws.com/${NudgeStage}/insight

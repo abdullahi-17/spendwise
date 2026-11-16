@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Introduction | SpendWise</title><meta name="description" content="SpendWise: a mindful-spending browser demo with a Python serverless API and AWS delivery configuration."><link rel="stylesheet" href="css/spendwise.css"></head>
+<body class="sidebar-layout"><a class="skip-link" href="#main-content">Skip to content</a><aside class="cs-nav" aria-label="SpendWise navigation"><a class="sidebar-brand" href="index.html">SpendWise ·</a><div class="project-nav" id="project-navigation"><nav class="sidebar-pages" aria-label="Project navigation"><a href="index.html" aria-current="page">Introduction</a><a href="design-research.html">Design Research &amp; Testing</a><a href="user-experience.html">User Experience</a><a href="app-configuration.html">App Configuration</a></nav><a class="sidebar-demo btn btn-primary" href="demo.html">Test the demo →</a><div class="sidebar-contents"><p class="sidebar-contents-title">Contents</p><nav class="sidebar-sections" aria-label="On this page"><a href="#problem">The problem</a><a href="#opportunity">The opportunity</a><a href="#solution">The solution</a></nav></div><div class="sidebar-footer"><a href="https://abdullahiomer.com/">← Back to portfolio</a><p>Abdullahi Omer</p></div></div></aside><div class="container"><main class="cs-main split-main" id="main-content" tabindex="-1"><header class="cs-section"><div class="cs-eyebrow">SpendWise</div><h1 class="cs-h1">SpendWise</h1><p class="cs-p">SpendWise combines product design, UX design, and cloud engineering in a mindful-spending project. Try the browser demo, explore the design process, and see how its Python API and AWS delivery workflow support the experience.</p><div class="cta-buttons" style="margin-top:1.5rem"><a class="btn btn-primary" href="demo.html">Test the demo →</a><a class="btn btn-secondary" href="app-configuration.html">Explore the cloud architecture →</a></div></header><div class="project-status-grid" aria-label="Project implementation status"><div class="card"><h2>Browser demo</h2><p>Implemented and tested locally. Sample purchases, optional reflection, and local insight fallback.</p></div><div class="card"><h2>Cloud configuration</h2><p>API, infrastructure, deployment, monitoring, and recovery code prepared. Hosted verification remains pending.</p></div><div class="card"><h2>Mobile concept</h2><p>Interface studies only. Accounts, saved history, reminders, and shopping-app prompts are future work.</p></div></div><section id="problem" class="cs-section">
+          <div class="cs-eyebrow">01 Problem</div>
+          <h2 class="cs-h2">Make space to reflect before a purchase.</h2>
+          <p class="cs-p">SpendWise explores whether a short check in can help someone notice their mood, planning, and sense of urgency while considering a purchase. This is a design question, not a demonstrated reduction in spending or regret.</p>
+          <div class="grid-2"><div class="card"><h3>User need being explored</h3><p>A simple way to pause, reflect, and make a choice without being judged or prevented from continuing.</p></div><div class="card"><h3>Engineering challenge</h3><p>Deliver a small application with explainable API responses, graceful fallback, scoped deployment access, and a reviewable recovery process.</p></div></div>
+        </section>
+        <section id="opportunity" class="cs-section">
+          <div class="cs-eyebrow">02 Opportunity</div>
+          <h2 class="cs-h2">Keep the product small and the engineering visible.</h2>
+          <p class="cs-p">The demo focuses on one complete reflection flow. Its cloud implementation uses API Gateway and a Python Lambda function, with matching rules in the browser when the API is unavailable. GitHub Actions checks and packages the website before deployment.</p>
+          <p class="cs-p">The portfolio distinguishes application tests from cloud evidence. Live API integration, alert delivery, and rollback still need a hosted demonstration. No verified market-size estimate or competitor comparison is claimed here.</p>
+        </section>
+
+<section id="solution" class="cs-section">
+  <div class="cs-eyebrow">03 The solution</div>
+  <div class="solution-intro-layout"><div class="solution-intro-copy">
+  <h2 class="cs-h2">A moment to pause before a purchase.</h2>
+  <p class="cs-p">The working browser demo asks three questions, offers an optional pause and written reflection, then presents a neutral insight. The mobile studies below illustrate a broader future concept; they are separate from the implemented demo.</p>
+  </div>
+  <figure class="solution-phone-preview" aria-labelledby="solution-phone-caption">
+    <div class="solution-phone">
+      <div class="solution-phone-status" aria-hidden="true"><span>9:41</span><span>▰</span></div>
+      <div class="solution-splash">
+        <div class="solution-logo-mark" aria-hidden="true"><svg viewBox="0 0 64 64" width="60" height="60" fill="none"><path d="M18 16V36C18 44 24 49 32 49C40 49 46 44 46 36V16" stroke="currentColor" stroke-width="6" stroke-linecap="round"/><path d="M25 29L31 35L43 23" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="solution-wordmark">SpendWise<span aria-hidden="true"> ·</span></div>
+        <p>A little pause. A clearer choice.</p>
+        <div class="solution-loading" aria-hidden="true"><span></span><span></span><span></span></div>
+        <span class="solution-loading-label">A moment for you</span>
+      </div>
+      <div class="solution-home-indicator" aria-hidden="true"></div>
+    </div>
+    <figcaption id="solution-phone-caption">SpendWise splash screen · Interface mockup</figcaption>
+  </figure>
+  </div>
+
+  <div class="grid-3">
+    <div class="card"><h3>Notice the moment</h3><p>Start a reflection manually with a clearly labelled sample item. Shopping-app detection is not connected to this demo.</p></div>
+    <div class="card"><h3>Make room to reflect</h3><p>Answer a few questions about mood, planning, and urgency. Take an optional pause and consider a brief, non-judgemental reflection.</p></div>
+    <div class="card"><h3>Choose with intention</h3><p>Choose to continue shopping, consider the item later, or dismiss it. The outcome is simulated; nothing is purchased, reserved, or saved as history.</p></div>
+  </div>
+  <p class="cs-p" style="margin-top:1.5rem">The aim is greater confidence and awareness, not to block purchases or make financial decisions for someone.</p>
+  <a class="btn btn-primary" href="design-research.html">Explore the research behind the solution →</a>
+</section>
+</main></div><footer><div class="container"><p>© 2026 Abdullahi Omer · <a href="https://abdullahiomer.com/">Portfolio</a></p></div></footer><script src="js/navigation.js" defer></script></body></html>
